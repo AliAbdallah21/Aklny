@@ -1,4 +1,4 @@
-# HomeChefApp 🍲
+# Aklny🍲
 
 Empowering home cooks, students, and micro-entrepreneurs in Egypt to easily sell homemade food.
 

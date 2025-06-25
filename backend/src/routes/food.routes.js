@@ -1,29 +1,29 @@
 // backend/src/routes/food.routes.js
-// This file defines the API endpoints for managing food items.
+// This file defines the API endpoints for food items.
 
 import express from 'express';
 import FoodController from '../controllers/food.controller.js';
-import authenticateToken from '../middleware/auth.middleware.js';
-import authorizeRoles from '../middleware/authorize.middleware.js';
 
-const foodRoutes = (pool) => {
+// This function now needs authenticateToken and authorizeRoles
+const foodRoutes = (pool, authenticateToken, authorizeRoles) => { // ACCEPT middlewares
     const router = express.Router();
     const foodController = new FoodController(pool);
 
     // --- Public/Customer-facing routes ---
-    // Get all available food items (no authentication required)
-    router.get('/', foodController.getAllAvailableFoodItems.bind(foodController));
+    // Route to get all available food items
+    router.get('/', foodController.getAllAvailableFoodItems.bind(foodController)); // <-- CORRECTED NAME
+    // Route to get a single food item by ID
+    router.get('/:id', foodController.getFoodItemById.bind(foodController));
 
-    // --- Seller-specific routes (require authentication and 'seller' role) ---
-    // IMPORTANT: Define specific routes like '/seller' BEFORE generic routes like '/:id'
-    router.post('/seller', authenticateToken, authorizeRoles(['seller']), foodController.createFoodItem.bind(foodController));
-    router.get('/seller', authenticateToken, authorizeRoles(['seller']), foodController.getSellerFoodItems.bind(foodController)); // <-- MOVED UP
-    router.put('/seller/:id', authenticateToken, authorizeRoles(['seller']), foodController.updateSellerFoodItem.bind(foodController));
-    router.delete('/seller/:id', authenticateToken, authorizeRoles(['seller']), foodController.deleteSellerFoodItem.bind(foodController));
-
-    // Get a single food item by ID (publicly accessible)
-    // This must come AFTER any more specific routes that could be misinterpreted as an ':id'
-    router.get('/:id', foodController.getFoodItemById.bind(foodController)); // <-- MOVED DOWN
+    // --- Protected routes for sellers (managing their own food items) ---
+    // Route to create a new food item (seller only)
+    router.post('/seller', authenticateToken, authorizeRoles(['seller']), foodController.createFoodItem.bind(foodController)); // <-- NEW PATH FOR SELLER ACTIONS
+    // Route to get all food items owned by the authenticated seller
+    router.get('/seller/me', authenticateToken, authorizeRoles(['seller']), foodController.getSellerFoodItems.bind(foodController)); // <-- NEW PATH FOR SELLER ACTIONS
+    // Route to update one of the seller's food items
+    router.put('/seller/:id', authenticateToken, authorizeRoles(['seller']), foodController.updateSellerFoodItem.bind(foodController)); // <-- CORRECTED NAME
+    // Route to delete one of the seller's food items
+    router.delete('/seller/:id', authenticateToken, authorizeRoles(['seller']), foodController.deleteSellerFoodItem.bind(foodController)); // <-- CORRECTED NAME
 
     return router;
 };

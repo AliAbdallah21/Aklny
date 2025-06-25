@@ -3,14 +3,13 @@
 
 import bcrypt from 'bcryptjs'; // For password hashing
 import jwt from 'jsonwebtoken'; // For JWT token generation and verification
-import User from '../models/user.model.js'; // Import the User model (note the .js extension)
-
-// Get JWT secret from environment variables (loaded by dotenv/config in app.js)
-const JWT_SECRET = process.env.JWT_SECRET;
+import User from '../models/user.model.js'; // Import the User model
 
 class AuthService {
-    constructor(pool) {
-        this.pool = pool; // The PostgreSQL connection pool is passed to the service
+    constructor(pool, jwtSecret) { // Constructor receives jwtSecret
+        this.pool = pool; // The PostgreSQL connection pool
+        this.jwtSecret = jwtSecret; // Store the JWT secret passed from the controller/routes
+        // console.log(`[AuthService CONSTRUCTOR DEBUG] JWT_SECRET value received: ${this.jwtSecret ? 'PRESENT' : 'MISSING'}`);
     }
 
     // Method to handle user registration
@@ -61,10 +60,14 @@ class AuthService {
             throw new Error('Invalid credentials.'); // Generic message for security
         }
 
+        // --- ADD THIS DEBUG LOG ---
+        console.log(`[AuthService DEBUG] login method: Using JWT_SECRET: ${this.jwtSecret ? 'PRESENT' : 'MISSING'}`);
+        // --- END DEBUG LOG ---
+
         // Generate a JSON Web Token (JWT) for the authenticated user
         const token = jwt.sign(
             { userId: user.user_id, email: user.email, role: user.role }, // Payload of the token
-            JWT_SECRET, // The secret key to sign the token
+            this.jwtSecret, // The secret key to sign the token (from constructor)
             { expiresIn: '1h' } // Token expiration time (e.g., 1 hour)
         );
 
@@ -76,8 +79,8 @@ class AuthService {
     // Method to verify a JWT token (used for protecting routes)
     async verifyToken(token) {
         try {
-            // Verify the token using the secret key
-            const decoded = jwt.verify(token, JWT_SECRET);
+            // Verify the token using the secret key (from constructor)
+            const decoded = jwt.verify(token, this.jwtSecret);
             return decoded; // Returns the payload (userId, email, role) if valid
         } catch (error) {
             throw new Error('Invalid or expired token.'); // Handle token validation errors
@@ -85,6 +88,6 @@ class AuthService {
     }
 }
 
-// Export an instance of AuthService, or the class itself.
-// Exporting the class allows you to create instances where needed, passing the pool.
+// Export the AuthService class.
+// This will be instantiated in the routes file, passing the pool and jwtSecret.
 export default AuthService;

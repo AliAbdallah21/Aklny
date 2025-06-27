@@ -4,9 +4,9 @@
 import AuthService from '../services/auth.service.js'; // Import the AuthService (note .js extension)
 
 class AuthController {
-    constructor(pool) {
+    constructor(pool,jwtsecret) {
         // An instance of AuthService is created, receiving the PostgreSQL pool.
-        this.authService = new AuthService(pool);
+        this.authService = new AuthService(pool,jwtsecret);
     }
 
     // Controller method for user registration

@@ -6,12 +6,11 @@ import User from '../models/user.model.js'; // Import the User model (note the .
 import { validateRegister } from '../utils/validation.utils.js';
 import { hashPassword, comparePassowrd } from '../utils/password.utils.js';
 
-// Get JWT secret from environment variables (loaded by dotenv/config in app.js)
-const JWT_SECRET = process.env.JWT_SECRET;
-
 class AuthService {
-    constructor(pool) {
-        this.pool = pool; // The PostgreSQL connection pool is passed to the service
+    constructor(pool, jwtSecret) { // Constructor receives jwtSecret
+        this.pool = pool; // The PostgreSQL connection pool
+        this.jwtSecret = jwtSecret; // Store the JWT secret passed from the controller/routes
+        // console.log(`[AuthService CONSTRUCTOR DEBUG] JWT_SECRET value received: ${this.jwtSecret ? 'PRESENT' : 'MISSING'}`);
     }
 
     // Method to handle user registration
@@ -27,6 +26,10 @@ class AuthService {
             throw new Error('User with this email already exists.');
         }
 
+        // IMPORTANT SECURITY FIX: ALWAYS DEFAULT SELF-REGISTERED USERS TO 'customer' ROLE
+        // This prevents users from declaring themselves as admin/seller/driver during public registration.
+        const assignedRole = 'customer'; // <-- THIS LINE IS CRUCIAL: HARDCODE THE ROLE
+
         // Hash the user's password for secure storage
         const passwordHash = await hashPassword(password); // Hash the password
 
@@ -36,7 +39,7 @@ class AuthService {
             passwordHash,
             fullName,
             phoneNumber,
-            role
+            role: assignedRole // <-- USE THE HARDCODED ROLE HERE, IGNORING THE 'role' FROM REQ.BODY
         });
 
         // Note: For 'customer' roles, seller/driver-specific fields will be NULL by default
@@ -54,18 +57,18 @@ class AuthService {
         // Find the user by their email
         const user = await User.findByEmail(this.pool, email);
         if (!user) {
-            throw new Error('Invalid credentials.'); // Generic message for security
+            throw new Error('Invalid Email.'); // Generic message for security
         }
 
         // Compare the provided password with the hashed password stored in the database
         if (!comparePassowrd(password, user.password_hash)) {
-            throw new Error('Invalid credentials.'); // Generic message for security
+            throw new Error('Incorrect password'); // Generic message for security
         }
 
         // Generate a JSON Web Token (JWT) for the authenticated user
         const token = jwt.sign(
             { userId: user.user_id, email: user.email, role: user.role }, // Payload of the token
-            JWT_SECRET, // The secret key to sign the token
+            this.jwtSecret, // The secret key to sign the token (from constructor)
             { expiresIn: '1h' } // Token expiration time (e.g., 1 hour)
         );
 
@@ -77,8 +80,8 @@ class AuthService {
     // Method to verify a JWT token (used for protecting routes)
     async verifyToken(token) {
         try {
-            // Verify the token using the secret key
-            const decoded = jwt.verify(token, JWT_SECRET);
+            // Verify the token using the secret key (from constructor)
+            const decoded = jwt.verify(token, this.jwtSecret);
             return decoded; // Returns the payload (userId, email, role) if valid
         } catch (error) {
             throw new Error('Invalid or expired token.'); // Handle token validation errors
@@ -86,6 +89,6 @@ class AuthService {
     }
 }
 
-// Export an instance of AuthService, or the class itself.
-// Exporting the class allows you to create instances where needed, passing the pool.
+// Export the AuthService class.
+// This will be instantiated in the routes file, passing the pool and jwtSecret.
 export default AuthService;

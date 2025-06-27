@@ -1,26 +1,13 @@
 // backend/src/routes/auth.routes.js
-// This file defines the API endpoints for authentication.
+import express from 'express';
+import AuthController from '../controllers/auth.controller.js';
 
-import express from 'express'; // Import Express to create a router
-import AuthController from '../controllers/auth.controller.js'; // Import the AuthController
-import { asyncHandler } from '../utils/errors.utils.js';
-
-// This function will create and return an Express router for authentication routes.
-// It takes the PostgreSQL connection pool as an argument.
-const authRoutes = (pool) => {
-    const router = express.Router(); // Create a new Express router
-    const authController = new AuthController(pool); // Create an instance of AuthController, passing the pool
-
-    // Define the POST /api/auth/register route
-    // When a POST request comes to /api/auth/register, it calls authController.register
-    // .bind(authController) ensures that 'this' context inside register method refers to authController instance.
-    router.post('/register', asyncHandler(authController.register.bind(authController)));
-
-    // Define the POST /api/auth/login route
-    // When a POST request comes to /api/auth/login, it calls authController.login
-    router.post('/login', asyncHandler(authController.login.bind(authController)));
-
-    return router; // Return the configured router
+// This function now needs jwtSecret to initialize AuthController
+const authRoutes = (pool, jwtSecret) => { // <-- ACCEPT jwtSecret
+    const router = express.Router();
+    const authController = new AuthController(pool, jwtSecret); // <-- PASS jwtSecret
+    router.post('/register', authController.register.bind(authController));
+    router.post('/login', authController.login.bind(authController));
+    return router;
 };
-
-export default authRoutes; // Export the function that creates the router
+export default authRoutes;

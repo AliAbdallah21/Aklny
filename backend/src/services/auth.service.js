@@ -13,10 +13,11 @@ class AuthService {
     }
 
     // Method to handle user registration
-    async register({ email, password, fullName, phoneNumber, role }) {
-        // Basic input validation
-        if (!email || !password || !fullName || !phoneNumber || !role) {
-            throw new Error('All required fields must be provided for registration.');
+    async register({ email, password, fullName, phoneNumber, role }) { // 'role' parameter is received but will be overridden
+        // Basic input validation - ensure all necessary fields are provided for a *customer* registration
+        if (!email || !password || !fullName || !phoneNumber) {
+            // Removed 'role' from this check because it will be internally assigned as 'customer'
+            throw new Error('Email, password, full name, and phone number are required for registration.');
         }
 
         // Check if a user with the provided email already exists
@@ -24,6 +25,10 @@ class AuthService {
         if (existingUser) {
             throw new Error('User with this email already exists.');
         }
+
+        // IMPORTANT SECURITY FIX: ALWAYS DEFAULT SELF-REGISTERED USERS TO 'customer' ROLE
+        // This prevents users from declaring themselves as admin/seller/driver during public registration.
+        const assignedRole = 'customer'; // <-- THIS LINE IS CRUCIAL: HARDCODE THE ROLE
 
         // Hash the user's password for secure storage
         const salt = await bcrypt.genSalt(10); // Generate a salt
@@ -35,7 +40,7 @@ class AuthService {
             passwordHash,
             fullName,
             phoneNumber,
-            role
+            role: assignedRole // <-- USE THE HARDCODED ROLE HERE, IGNORING THE 'role' FROM REQ.BODY
         });
 
         // Note: For 'customer' roles, seller/driver-specific fields will be NULL by default
@@ -51,18 +56,14 @@ class AuthService {
         // Find the user by their email
         const user = await User.findByEmail(this.pool, email);
         if (!user) {
-            throw new Error('Invalid credentials.'); // Generic message for security
+            throw new Error('Invalid Email.'); // Generic message for security
         }
 
         // Compare the provided password with the hashed password stored in the database
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
-            throw new Error('Invalid credentials.'); // Generic message for security
+            throw new Error('Incorrect password'); // Generic message for security
         }
-
-        // --- ADD THIS DEBUG LOG ---
-        console.log(`[AuthService DEBUG] login method: Using JWT_SECRET: ${this.jwtSecret ? 'PRESENT' : 'MISSING'}`);
-        // --- END DEBUG LOG ---
 
         // Generate a JSON Web Token (JWT) for the authenticated user
         const token = jwt.sign(

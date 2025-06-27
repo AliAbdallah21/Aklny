@@ -1,7 +1,5 @@
 // backend/src/app.js
 
-// REMOVE ALL DOTENV-RELATED IMPORTS AND CODE FROM HERE!
-// They are now handled exclusively in server.js
 
 import express from 'express';
 import cors from 'cors';

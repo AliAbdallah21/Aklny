@@ -1,9 +1,10 @@
 // backend/src/services/auth.service.js
 // This service handles the core business logic for user authentication.
 
-import bcrypt from 'bcryptjs'; // For password hashing
 import jwt from 'jsonwebtoken'; // For JWT token generation and verification
 import User from '../models/user.model.js'; // Import the User model (note the .js extension)
+import { validateRegister } from '../utils/validation.utils.js';
+import { hashPassword, comparePassowrd } from '../utils/password.utils.js';
 
 // Get JWT secret from environment variables (loaded by dotenv/config in app.js)
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -16,7 +17,7 @@ class AuthService {
     // Method to handle user registration
     async register({ email, password, fullName, phoneNumber, role }) {
         // Basic input validation
-        if (!email || !password || !fullName || !phoneNumber || !role) {
+        if(validateRegister({email,password,fullName,phoneNumber})){
             throw new Error('All required fields must be provided for registration.');
         }
 
@@ -27,8 +28,7 @@ class AuthService {
         }
 
         // Hash the user's password for secure storage
-        const salt = await bcrypt.genSalt(10); // Generate a salt
-        const passwordHash = await bcrypt.hash(password, salt); // Hash the password
+        const passwordHash = await hashPassword(password); // Hash the password
 
         // Create the new user record in the database using the User model
         const newUser = await User.create(this.pool, {
@@ -47,6 +47,8 @@ class AuthService {
         return newUser;
     }
 
+    
+
     // Method to handle user login
     async login({ email, password }) {
         // Find the user by their email
@@ -56,8 +58,7 @@ class AuthService {
         }
 
         // Compare the provided password with the hashed password stored in the database
-        const isMatch = await bcrypt.compare(password, user.password_hash);
-        if (!isMatch) {
+        if (!comparePassowrd(password, user.password_hash)) {
             throw new Error('Invalid credentials.'); // Generic message for security
         }
 

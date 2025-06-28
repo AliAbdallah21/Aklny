@@ -4,7 +4,7 @@
 import jwt from 'jsonwebtoken'; // For JWT token generation and verification
 import User from '../models/user.model.js'; // Import the User model (note the .js extension)
 import { validateRegister } from '../utils/validation.utils.js';
-import { hashPassword, comparePassowrd } from '../utils/password.utils.js';
+import { hashPassword, comparePassword } from '../utils/password.utils.js';
 
 class AuthService {
     constructor(pool, jwtSecret) { // Constructor receives jwtSecret
@@ -14,7 +14,7 @@ class AuthService {
     }
 
     // Method to handle user registration
-    async register({ email, password, fullName, phoneNumber, role }) {
+    async register({ email, password, fullName, phoneNumber}) {
         // Basic input validation
         if(validateRegister({email,password,fullName,phoneNumber})){
             throw new Error('All required fields must be provided for registration.');
@@ -61,7 +61,7 @@ class AuthService {
         }
 
         // Compare the provided password with the hashed password stored in the database
-        if (!comparePassowrd(password, user.password_hash)) {
+        if (!comparePassword(password, user.password_hash)) {
             throw new Error('Incorrect password'); // Generic message for security
         }
 

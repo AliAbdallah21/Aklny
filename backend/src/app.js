@@ -6,7 +6,7 @@ import cors from 'cors';
 import pg from 'pg';
 
 // Import MongoDB connection function (but the call will be inside initializeApp)
-import connectMongoDB from './config/mongo.config.js';
+//import connectMongoDB from './config/mongo.config.js';
 
 // Import route factories (these will now accept dependencies)
 import authRoutes from './routes/auth.routes.js';
@@ -22,26 +22,20 @@ let pool; // Declare pool outside to be exported later
 const initializeApp = async (jwtSecret, authenticateTokenFactory) => { // <-- IMPORTANT: JWT_SECRET & AUTH_TOKEN FACTORY
     const app = express();
 
-    // Create PostgreSQL Pool and connect to MongoDB *INSIDE* this function
-    const { Pool } = pg;
-    pool = new Pool({
-      user: process.env.PGUSER,
-      host: process.env.PGHOST,
-      database: process.env.PGDATABASE,
-      password: process.env.PGPASSWORD,
-      port: process.env.PGPORT,
+    const { Pool } = pg; //connect to postgreSQL on supabase
+    const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: {rejectUnauthorized: false }
     });
 
-    // Test the PostgreSQL database connection
-    await pool.query('SELECT NOW()')
+    await pool.query('SELECT NOW()')  // Test the PostgreSQL database connection
         .then(res => console.log('PostgreSQL database connected successfully at:', res.rows[0].now))
         .catch(err => {
             console.error('PostgreSQL Database connection error:', err.stack);
             process.exit(1);
         });
 
-    // Connect to MongoDB
-    connectMongoDB();
+    //connectMongoDB(); // Connect to MongoDB
 
     // Middleware setup
     app.use(cors());
@@ -57,15 +51,12 @@ const initializeApp = async (jwtSecret, authenticateTokenFactory) => { // <-- IM
 
     // --- API Routes ---
     // Authentication routes (publicly accessible for login/register)
-    // Pass the jwtSecret to the authRoutes factory so it can create AuthService with the secret
     app.use('/api/auth', authRoutes(pool, jwtSecret)); // <-- PASS jwtSecret
 
     // Food item routes (includes public and seller-specific endpoints)
-    // Pass authenticateToken and authorizeRoles so foodRoutes can apply them
     app.use('/api/food', foodRoutes(pool, authenticateToken, authorizeRoles)); // <-- PASS AUTH MIDDLEWARE & AUTHORIZE
 
     // User profile routes (protected, /api/users/me, /api/users/me/password)
-    // Pass authenticateToken so userRoutes can apply it
     app.use('/api/users', userRoutes(pool, authenticateToken)); // <-- PASS AUTH MIDDLEWARE
 
 
@@ -92,7 +83,7 @@ const initializeApp = async (jwtSecret, authenticateTokenFactory) => { // <-- IM
         });
     });
 
-    return app; // Return the configured app instance
+    return app;
 };
 
 export { initializeApp, pool }; // Export initializeApp and the now-defined pool

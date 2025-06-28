@@ -1,5 +1,5 @@
-const validateRegister = ({ email, password, fullName, phoneNumber, role }) => {
-    if (!email || !password || !fullName || !phoneNumber || !role) {
+const validateRegister = ({ email, password, fullName, phoneNumber}) => {
+    if (!email || !password || !fullName || !phoneNumber) {
         return true;
     }
     return false;

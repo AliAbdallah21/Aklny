@@ -11,9 +11,9 @@ class AuthController {
 
     // Controller method for user registration
     async register(req, res) {
-            const { email, password, fullName, phoneNumber, role } = req.body; // Extract data from request body
+            const { email, password, fullName, phoneNumber} = req.body; // Extract data from request body
             // Call the register method from AuthService
-            const newUser = await this.authService.register({ email, password, fullName, phoneNumber, role });
+            const newUser = await this.authService.register({ email, password, fullName, phoneNumber});
             // Send a 201 Created status and the new user's information
             res.status(201).json({ message: 'User registered successfully!', user: newUser });
     }

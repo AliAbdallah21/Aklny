@@ -1,5 +1,5 @@
 // backend/src/app.js
-
+// Main Express application setup.
 
 import express from 'express';
 import cors from 'cors';
@@ -15,6 +15,9 @@ import userRoutes from './routes/user.routes.js';
 
 // Import authorizeRoles (authenticateToken will be passed from server.js)
 import authorizeRoles from './middleware/authorize.middleware.js'; // This remains directly imported
+
+// NEW: Import the error handling utility
+import errorHandler from './utils/error.utils.js'; // Correct path to the error handler
 
 // Export the initializeApp function and the pool (which will be defined inside)
 let pool; // Declare pool outside to be exported later
@@ -91,6 +94,10 @@ const initializeApp = async (jwtSecret, authenticateTokenFactory) => { // <-- IM
             user: req.user
         });
     });
+
+    // IMPORTANT: Error handling middleware - MUST BE LAST after all other app.use() and routes
+    // This catches any errors passed with next(error) from controllers/middleware/services
+    app.use(errorHandler);
 
     return app; // Return the configured app instance
 };

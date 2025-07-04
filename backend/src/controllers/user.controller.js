@@ -1,7 +1,10 @@
 // backend/src/controllers/user.controller.js
-// This controller handles HTTP requests related to user profiles.
+// This controller handles HTTP requests related to user profiles,
+// now with improved error handling and validation using utility functions.
 
 import UserService from '../services/user.service.js'; // Import the UserService
+import AppError from '../utils/appError.js'; // NEW: Import custom AppError
+import { checkRequiredFields, validatePasswordStrength } from '../utils/validation.utils.js'; // NEW: Import validation utilities
 
 class UserController {
     constructor(pool) {
@@ -9,54 +12,53 @@ class UserController {
     }
 
     // Controller method to get a user's own profile (protected)
-    async getMyProfile(req, res) {
+    async getMyProfile(req, res, next) { // Added 'next' parameter
         try {
             // userId comes from the authenticated user's JWT (attached by authenticateToken middleware)
             const userId = req.user.userId;
             const userProfile = await this.userService.getUserProfile(userId);
             res.status(200).json(userProfile);
         } catch (error) {
-            res.status(404).json({ message: error.message }); // 404 if user not found, or other errors
+            // Pass the error to the global error handler
+            next(error);
         }
     }
 
     // Controller method to update a user's own profile (protected)
-    async updateMyProfile(req, res) {
+    async updateMyProfile(req, res, next) { // Added 'next' parameter
         try {
             const userId = req.user.userId; // Get userId from authenticated user
             const updateData = req.body; // Update data from the request body
 
+            // Optional: Add more specific validation for updateData if needed
+            if (Object.keys(updateData).length === 0) {
+                throw new AppError('No update data provided.', 400);
+            }
+
             const updatedProfile = await this.userService.updateProfile(userId, updateData);
             res.status(200).json({ message: 'Profile updated successfully!', user: updatedProfile });
         } catch (error) {
-            res.status(400).json({ message: error.message }); // 400 for validation errors or no data
+            // Pass the error to the global error handler
+            next(error);
         }
     }
 
     // Controller method to change a user's own password (protected)
-    async changeMyPassword(req, res) {
+    async changeMyPassword(req, res, next) { // Added 'next' parameter
         try {
             const userId = req.user.userId; // Get userId from authenticated user
             const { currentPassword, newPassword } = req.body; // Passwords from request body
 
-            if (!currentPassword || !newPassword) {
-                return res.status(400).json({ message: 'Current password and new password are required.' });
-            }
-
-            // Add validation for new password strength (e.g., min length, complexity)
-            if (newPassword.length < 8) {
-                return res.status(400).json({ message: 'New password must be at least 8 characters long.' });
-            }
+            // Use validation utility
+            checkRequiredFields(req.body, ['currentPassword', 'newPassword']);
+            validatePasswordStrength(newPassword); // Defaults to 8 characters
 
             const result = await this.userService.changePassword(userId, currentPassword, newPassword);
             res.status(200).json(result); // Should contain a success message
         } catch (error) {
-            // Use 401 for incorrect password, 400 for other validation
-            if (error.message === 'Incorrect current password.') {
-                res.status(401).json({ message: error.message });
-            } else {
-                res.status(400).json({ message: error.message });
-            }
+            // Pass the error to the global error handler.
+            // The service layer should throw AppError with appropriate status codes (e.g., 401 for incorrect password).
+            next(error);
         }
     }
 

@@ -1,10 +1,13 @@
 // lib/screens/registration_screen.dart
-// This file defines the Registration Screen for the Aklny app with updated design.
+// This file defines the Registration Screen for the Aklny app with updated design,
+// now correctly integrated with the email verification flow.
 
 import 'package:flutter/material.dart';
-import '../api_service/auth_api_service.dart';
-import 'login_screen.dart';
-import '../constants/theme_constants.dart'; // IMPORTANT: Import AppColors from central file
+import '../api_service/auth_api_service.dart'; // For API calls
+import '../constants/theme_constants.dart'; // For AppColors
+import 'login_screen.dart'; // For navigating to login
+import 'verification_pending_screen.dart'; // IMPORTANT: For new verification flow
+
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -19,11 +22,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
-  final AuthApiService _authApiService = AuthApiService();
+  final AuthApiService _authApiService =
+      AuthApiService(); // Instance of the API service
+
   bool _isLoading = false;
   String? _errorMessage;
+  bool _obscurePassword = true; // To toggle password visibility
 
-  final String _selectedRole = 'customer'; // Default role for registration
+  // _selectedRole is no longer needed here as it's not passed to AuthApiService.register.
+  // The backend now defaults new registrations to 'customer' role.
 
   @override
   void dispose() {
@@ -35,46 +42,51 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   Future<void> _register() async {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState?.validate() ?? false) {
+      // Ensure form is validated
       setState(() {
-        _isLoading = true;
-        _errorMessage = null;
+        _isLoading = true; // Show loading indicator
+        _errorMessage = null; // Clear previous errors
       });
 
       try {
-        final response = await _authApiService.register(
+        // CORRECTED CALL: Removed the 'role' parameter. Backend handles it.
+        // The register method now returns a User object directly.
+        final user = await _authApiService.register(
           email: _emailController.text.trim(),
-          password: _passwordController.text,
+          password:
+              _passwordController.text, // Password should not be trimmed here
           fullName: _fullNameController.text.trim(),
           phoneNumber: _phoneNumberController.text.trim(),
-          role: _selectedRole,
         );
 
-        if (response.containsKey('message') &&
-            response['message'] == 'User registered successfully!') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Registration successful! Please log in.'),
-              backgroundColor: Colors.green,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Registration successful! Please check your email to verify your account.',
             ),
-          );
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-          );
-        } else {
-          setState(() {
-            _errorMessage =
-                'Registration failed: ${response['message'] ?? 'Unknown error.'}';
-          });
-        }
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // NEW NAVIGATION: Navigate to VerificationPendingScreen after successful registration
+        // Pass the user's email so the pending screen can display it and offer resend.
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => VerificationPendingScreen(email: user.email),
+          ),
+        );
       } catch (e) {
         setState(() {
-          _errorMessage = e.toString().replaceFirst('Exception: ', '');
+          _errorMessage = e.toString().replaceFirst(
+            'Exception: ',
+            '',
+          ); // Clean error message
         });
-        print('Registration error: $_errorMessage');
+        print('Registration error: $_errorMessage'); // Log error for debugging
       } finally {
         setState(() {
-          _isLoading = false;
+          _isLoading = false; // Hide loading indicator
         });
       }
     }
@@ -83,7 +95,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.unbleached,
+      backgroundColor: AppColors.unbleached, // Use your custom color
       body: Stack(
         children: [
           // Background decorative element (top-left) - Orange Crush accent
@@ -94,7 +106,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               width: 200,
               height: 200,
               decoration: BoxDecoration(
-                color: AppColors.orangeCrush.withOpacity(0.3),
+                color: AppColors.orangeCrush.withOpacity(0.3), // Soft accent
                 shape: BoxShape.circle,
               ),
             ),
@@ -107,7 +119,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               width: 250,
               height: 250,
               decoration: BoxDecoration(
-                color: AppColors.cadillacCoupe.withOpacity(0.2),
+                color: AppColors.cadillacCoupe.withOpacity(
+                  0.2,
+                ), // Slightly bolder accent
                 shape: BoxShape.circle,
               ),
             ),
@@ -124,9 +138,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   children: <Widget>[
                     // App Logo/Icon
                     Icon(
-                      Icons.person_add_alt_1,
+                      Icons.person_add_alt_1, // Example icon for registration
                       size: 120,
-                      color: AppColors.cadillacCoupe,
+                      color: AppColors.cadillacCoupe, // Branding color for icon
                     ),
                     const SizedBox(height: 30),
                     Text(
@@ -134,7 +148,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.avocadoPeel,
+                        color: AppColors.avocadoPeel, // Dark text for contrast
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -143,7 +157,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       'Create your account to explore delicious home-cooked meals.',
                       style: TextStyle(
                         fontSize: 16,
-                        color: AppColors.avocadoPeel.withOpacity(0.7),
+                        color: AppColors.avocadoPeel.withOpacity(
+                          0.7,
+                        ), // Slightly faded
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -161,15 +177,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                          borderSide:
+                              BorderSide.none, // No border for cleaner look
                         ),
                         filled: true,
-                        fillColor: AppColors.unbleached.withOpacity(0.9),
+                        fillColor: AppColors.unbleached.withOpacity(
+                          0.9,
+                        ), // Subtle fill
                         contentPadding: const EdgeInsets.symmetric(
                           vertical: 16.0,
                           horizontal: 16.0,
                         ),
                         enabledBorder: OutlineInputBorder(
+                          // Custom enabled border
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
                             color: AppColors.squashBlossom.withOpacity(0.5),
@@ -177,6 +197,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
+                          // Custom focused border
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
                             color: AppColors.cadillacCoupe,
@@ -184,6 +205,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           ),
                         ),
                         errorBorder: OutlineInputBorder(
+                          // Error border
                           borderRadius: BorderRadius.circular(12),
                           borderSide: const BorderSide(
                             color: Colors.red,
@@ -191,6 +213,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           ),
                         ),
                         focusedErrorBorder: OutlineInputBorder(
+                          // Focused error border
                           borderRadius: BorderRadius.circular(12),
                           borderSide: const BorderSide(
                             color: Colors.red,
@@ -262,8 +285,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your phone number';
                         }
-                        if (!RegExp(r'^\d{11}$').hasMatch(value)) {
-                          return 'Please enter a valid 11-digit phone number';
+                        // Adjust regex if needed, this one checks for 11 digits starting with 01
+                        if (!RegExp(
+                          r'^01[0-2,5]{1}[0-9]{8}$',
+                        ).hasMatch(value)) {
+                          return 'Please enter a valid Egyptian phone number (e.g., 01xxxxxxxxx).';
                         }
                         return null;
                       },
@@ -382,8 +408,21 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             width: 2.0,
                           ),
                         ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: AppColors.avocadoPeel.withOpacity(0.6),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
-                      obscureText: true,
+                      obscureText: _obscurePassword, // Toggle visibility
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please create a password';
@@ -404,7 +443,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         child: Text(
                           _errorMessage!,
                           style: TextStyle(
-                            color: AppColors.cadillacCoupe,
+                            color: AppColors.cadillacCoupe, // Use error color
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
@@ -422,13 +461,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         : ElevatedButton(
                             onPressed: _register,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.cadillacCoupe,
-                              foregroundColor: AppColors.unbleached,
+                              backgroundColor: AppColors
+                                  .cadillacCoupe, // Primary button color
+                              foregroundColor:
+                                  AppColors.unbleached, // Text color
                               padding: const EdgeInsets.symmetric(vertical: 18),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              elevation: 8,
+                              elevation:
+                                  8, // Stronger shadow for prominent button
                             ),
                             child: const Text(
                               'Register',
@@ -452,7 +494,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       child: Text(
                         'Already have an account? Login Here',
                         style: TextStyle(
-                          color: AppColors.orangeCrush,
+                          color:
+                              AppColors.orangeCrush, // Branding color for link
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),

@@ -13,7 +13,7 @@ const generateNanoId = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcde
 
 // Define the Android Client ID directly here, as it's static and comes from google-services.json
 // This is the 'azp' claim in the ID token.
-const ANDROID_CLIENT_ID = '456570061071-84o7lvpb5jc4i4fir9e47aa4vh4hk6dk.apps.googleusercontent.com';
+const ANDROID_CLIENT_ID = 'GOOGLE_CLIENT_ID_ANDROID';
 
 // Initialize Google OAuth2Client.
 // The client ID passed to the constructor is typically the primary web client ID.

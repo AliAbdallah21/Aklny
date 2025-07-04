@@ -1,9 +1,5 @@
 // backend/src/services/auth.service.js
-// This service handles the core business logic for user authentication,
-// including registration, login, email verification, password reset, and Google Sign-In.
-// Now using AppError for consistent error handling with HTTP status codes.
 
-<<<<<<< HEAD
 import bcrypt from 'bcryptjs'; // For password hashing and comparison
 import jwt from 'jsonwebtoken'; // For JWT token generation and verification
 import { OAuth2Client } from 'google-auth-library'; // For Google ID Token verification
@@ -23,14 +19,12 @@ const ANDROID_CLIENT_ID = '456570061071-84o7lvpb5jc4i4fir9e47aa4vh4hk6dk.apps.go
 // The client ID passed to the constructor is typically the primary web client ID.
 // The 'audience' parameter in verifyIdToken will then specify all valid client IDs.
 const googleOAuthClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID_WEB);
-=======
 import jwt from 'jsonwebtoken'; // For JWT token generation and verification
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/user.model.js'; // Import the User model (note the .js extension)
 import RefreshToken from '../models/refresh_token.model.js';
 import { validateRegister } from '../utils/validation.utils.js';
 import { hashPassword, comparePassword } from '../utils/password.utils.js';
->>>>>>> 65b5a4cf46698eaa9ab4eee5ccefdc4d49e0582e
 
 class AuthService {
     constructor(pool, jwtSecret, jwtRefreshSecret) { // Constructor receives jwtSecret
@@ -44,7 +38,6 @@ class AuthService {
         // Basic input validation
         if (validateRegister({ email, password, fullName, phoneNumber })) {
             throw new Error('All required fields must be provided for registration.');
->>>>>>> 65b5a4cf46698eaa9ab4eee5ccefdc4d49e0582e
         }
 
         // Check if a user with the provided email already exists
@@ -57,12 +50,7 @@ class AuthService {
         const assignedRole = 'customer';
 
         // Hash the user's password for secure storage
-<<<<<<< HEAD
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
-=======
         const passwordHash = await hashPassword(password); // Hash the password
->>>>>>> 65b5a4cf46698eaa9ab4eee5ccefdc4d49e0582e
 
         // Generate email verification token and its expiry time
         const emailVerificationToken = generateNanoId();
@@ -103,14 +91,8 @@ class AuthService {
         }
 
         // Compare the provided password with the hashed password stored in the database
-<<<<<<< HEAD
-        const isMatch = await bcrypt.compare(password, user.password_hash);
-        if (!isMatch) {
-            throw new AppError('Invalid Email or Password.', 401); // 401 Unauthorized (generic message for security)
-=======
         if (!comparePassword(password, user.password_hash)) {
             throw new Error('Incorrect password'); // Generic message for security
->>>>>>> 65b5a4cf46698eaa9ab4eee5ccefdc4d49e0582e
         }
 
         // Generate a JSON Web Token (JWT) for the authenticated user
@@ -343,8 +325,8 @@ class AuthService {
             throw new AppError('Authentication failed.', 401); // Generic 401 for other token issues
         }
     }
-}
-}
+
+
 
     async generateAndStoreRefreshToken(userId) {
         const tokenId = uuidv4(); // Generates the unique refresh token value

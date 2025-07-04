@@ -3,11 +3,13 @@
 
 import express from 'express';
 import AuthController from '../controllers/auth.controller.js';
+import { asyncHandler } from '../utils/errors.utils.js';
 
 // This function receives the PostgreSQL connection pool and the JWT secret,
 // and returns an Express router with authentication-related routes.
 const authRoutes = (pool, jwtSecret) => { // Accepts pool and jwtSecret as before
     const router = express.Router();
+<<<<<<< HEAD
     // Instantiate AuthController, passing the pool and jwtSecret to its constructor
     const authController = new AuthController(pool, jwtSecret); 
 
@@ -42,6 +44,11 @@ const authRoutes = (pool, jwtSecret) => { // Accepts pool and jwtSecret as befor
 
     router.post('/google-login', authController.googleLogin.bind(authController));
 
+=======
+    const authController = new AuthController(pool, jwtSecret); // <-- PASS jwtSecret
+    router.post('/register', asyncHandler(authController.register.bind(authController)));
+    router.post('/login', asyncHandler(authController.login.bind(authController)));
+>>>>>>> 65b5a4cf46698eaa9ab4eee5ccefdc4d49e0582e
     return router;
 };
 

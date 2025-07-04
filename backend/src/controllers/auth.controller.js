@@ -14,6 +14,7 @@ class AuthController {
         this.authService = new AuthService(pool, jwtSecret);
     }
 
+<<<<<<< HEAD
     // Handles user registration (POST /api/auth/register)
     async register(req, res, next) {
         try {
@@ -133,6 +134,24 @@ class AuthController {
         } catch (error) {
             next(error);
         }
+=======
+    // Controller method for user registration
+    async register(req, res) {
+            const { email, password, fullName, phoneNumber} = req.body; // Extract data from request body
+            // Call the register method from AuthService
+            const newUser = await this.authService.register({ email, password, fullName, phoneNumber});
+            // Send a 201 Created status and the new user's information
+            res.status(201).json({ message: 'User registered successfully!', user: newUser });
+    }
+
+    // Controller method for user login
+    async login(req, res) {
+            const { email, password } = req.body; // Extract data from request body
+            // Call the login method from AuthService
+            const { token, user } = await this.authService.login({ email, password });
+            // Send a 200 OK status, a success message, the JWT token, and user info
+            res.status(200).json({ message: 'Login successful!', token, user });
+>>>>>>> 65b5a4cf46698eaa9ab4eee5ccefdc4d49e0582e
     }
 }
 

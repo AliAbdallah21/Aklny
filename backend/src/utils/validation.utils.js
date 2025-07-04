@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // backend/src/utils/validation.utils.js
 // Utility functions for common input validation.
 
@@ -29,3 +30,12 @@ export const validatePasswordStrength = (password, minLength = 8) => {
     }
     // Add more complex password validation here if needed (e.g., regex for special chars, numbers)
 };
+=======
+const validateRegister = ({ email, password, fullName, phoneNumber}) => {
+    if (!email || !password || !fullName || !phoneNumber) {
+        return true;
+    }
+    return false;
+};
+export { validateRegister };
+>>>>>>> 65b5a4cf46698eaa9ab4eee5ccefdc4d49e0582e

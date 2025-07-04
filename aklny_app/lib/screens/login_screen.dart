@@ -1,12 +1,24 @@
 // lib/screens/login_screen.dart
-// This file defines the Login Screen for the Aklny app with a new design.
+// This file defines the Login Screen for the Aklny app,
+// now using extracted components for better readability and maintainability.
 
 import 'package:flutter/material.dart';
-import '../api_service/auth_api_service.dart';
-import '../utils/token_manager.dart';
-import 'home_screen.dart';
-import 'registration_screen.dart';
-import '../constants/theme_constants.dart'; // IMPORTANT: Import AppColors from central file
+
+import '../api_service/auth_api_service.dart'; // For API calls
+import '../utils/token_manager.dart'; // For token storage
+import '../constants/theme_constants.dart'; // For AppColors
+import '../models/user_model.dart'; // For User model and isVerified status
+import 'main_app_screen.dart'; // For navigating to main app after successful login
+import 'verification_pending_screen.dart'; // For verification flow
+import 'forgot_password_screen.dart'; // For password reset flow
+import '../widgets/auth/google_sign_in_button.dart'; // Import the GoogleSignInButton widget
+import '../utils/ui_utils.dart'; // Import UiUtils for SnackBar
+
+// NEW WIDGET IMPORTS
+import '../widgets/auth/auth_text_field.dart';
+import '../widgets/auth/or_divider.dart';
+import '../widgets/registration_prompt.dart';
+import '../widgets/login_background_decorations.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthApiService _authApiService = AuthApiService();
   bool _isLoading = false;
   String? _errorMessage;
+  bool _obscurePassword = true; // To toggle password visibility
 
   @override
   void dispose() {
@@ -31,77 +44,108 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState?.validate() ?? false) {
       setState(() {
         _isLoading = true;
-        _errorMessage = null;
+        _errorMessage = null; // Clear any previous error messages
       });
 
       try {
-        final response = await _authApiService.login(
+        final responseData = await _authApiService.login(
           _emailController.text.trim(),
           _passwordController.text,
         );
 
-        if (response.containsKey('token') && response['token'] != null) {
-          await TokenManager.saveToken(response['token']);
-          print('Login successful! Token saved.');
+        final String token = responseData['token'];
+        final User user = responseData['user']; // Extract the User object
 
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
+        // Check if the user's email is verified
+        if (!user.isVerified) {
+          UiUtils.showSnackBar(
+            context,
+            'Please verify your email address to log in.',
+            isError: true,
           );
-        } else {
-          setState(() {
-            _errorMessage = 'Login failed: No token received.';
-          });
+          // Navigate to the VerificationPendingScreen if email is not verified
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) =>
+                  VerificationPendingScreen(email: user.email),
+            ),
+          );
+          return; // Stop the login process here if not verified
         }
+
+        // If email is verified, proceed to save token and navigate
+        await TokenManager.saveToken(token); // Save the authentication token
+
+        // Safely access fullName or fallback to email for display
+        final String displayName =
+            user.fullName != null && user.fullName!.isNotEmpty
+            ? user.fullName!.split(' ')[0] // Get first name if available
+            : user.email; // Fallback to email if full name is null or empty
+        UiUtils.showSnackBar(
+          context,
+          'Welcome back, $displayName!',
+        ); // Using UiUtils
+
+        // Navigate to the main application screen after successful login and verification
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const MainAppScreen()),
+        );
       } catch (e) {
         setState(() {
-          _errorMessage = e.toString().replaceFirst('Exception: ', '');
+          _errorMessage = e.toString().replaceFirst(
+            'Exception: ',
+            '',
+          ); // Clean error message
         });
-        print('Login error: $_errorMessage');
+        UiUtils.showSnackBar(
+          context,
+          _errorMessage!,
+          isError: true,
+        ); // Using UiUtils
       } finally {
         setState(() {
-          _isLoading = false;
+          _isLoading = false; // Hide loading indicator
         });
       }
     }
   }
 
+  // Callback for successful Google Sign-In
+  void _onGoogleSignInSuccess(String token, User user) {
+    // Safely access fullName or fallback to email for display
+    final String displayName =
+        user.fullName != null && user.fullName!.isNotEmpty
+        ? user.fullName!.split(' ')[0] // Get first name if available
+        : user.email; // Fallback to email if full name is null or empty
+    UiUtils.showSnackBar(
+      context,
+      'Google Sign-In successful for $displayName!',
+    ); // Using UiUtils
+
+    // Store the 'token' (JWT from your backend)
+    TokenManager.saveToken(token); // Save the authentication token
+    // Navigate to the main application screen
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const MainAppScreen()));
+  }
+
+  // Callback for failed Google Sign-In
+  void _onGoogleSignInFailure(String error) {
+    UiUtils.showSnackBar(context, error, isError: true); // Using UiUtils
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.unbleached, // Use the light background color
+      backgroundColor: AppColors.unbleached, // Use your custom color
       body: Stack(
         children: [
-          // Background decorative element (top-left) - Orange Crush accent
-          Positioned(
-            top: -50,
-            left: -50,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: AppColors.squashBlossom.withOpacity(0.3), // Soft accent
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          // Background decorative element (bottom-right) - Cadillac Coupe accent
-          Positioned(
-            bottom: -70,
-            right: -70,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                color: AppColors.cadillacCoupe.withOpacity(
-                  0.2,
-                ), // Primary accent with opacity
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
+          // Background decorative elements
+          const LoginBackgroundDecorations(), // Using the new widget
           // Main content centered
           Center(
             child: SingleChildScrollView(
@@ -114,13 +158,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: <Widget>[
                     // App Logo/Icon
                     Icon(
-                      Icons.restaurant_menu, // A more refined food icon
+                      Icons.restaurant, // Example icon for your app
                       size: 120,
-                      color: AppColors.cadillacCoupe, // Primary branding color
+                      color: AppColors.cadillacCoupe, // Branding color for icon
                     ),
                     const SizedBox(height: 30),
                     Text(
-                      'Welcome to Aklny!',
+                      'Welcome to Aklny',
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -141,57 +185,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // Email Input
-                    TextFormField(
+                    // Email Field
+                    AuthTextField(
+                      // Using the new AuthTextField widget
                       controller: _emailController,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        hintText: 'your_email@example.com',
-                        prefixIcon: Icon(
-                          Icons.email,
-                          color: AppColors.cadillacCoupe,
-                        ), // Icon color
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: AppColors.unbleached.withOpacity(0.9),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 16.0,
-                          horizontal: 16.0,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: AppColors.squashBlossom.withOpacity(0.5),
-                            width: 1.0,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: AppColors.cadillacCoupe,
-                            width: 2.0,
-                          ), // Focused border
-                        ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.red,
-                            width: 1.0,
-                          ),
-                        ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.red,
-                            width: 2.0,
-                          ),
-                        ),
-                      ),
+                      labelText: 'Email',
+                      hintText: 'Enter your email address',
+                      prefixIcon: Icons.email,
                       keyboardType: TextInputType.emailAddress,
-                      style: TextStyle(color: AppColors.avocadoPeel),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your email';
@@ -204,57 +205,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Password Input
-                    TextFormField(
+                    // Password Field
+                    AuthTextField(
+                      // Using the new AuthTextField widget
                       controller: _passwordController,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        hintText: 'Your secret password',
-                        prefixIcon: Icon(
-                          Icons.lock,
-                          color: AppColors.cadillacCoupe,
-                        ), // Icon color
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                      labelText: 'Password',
+                      hintText: 'Your secret password',
+                      prefixIcon: Icons.lock,
+                      obscureText: _obscurePassword,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: AppColors.avocadoPeel.withOpacity(0.6),
                         ),
-                        filled: true,
-                        fillColor: AppColors.unbleached.withOpacity(0.9),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 16.0,
-                          horizontal: 16.0,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: AppColors.squashBlossom.withOpacity(0.5),
-                            width: 1.0,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: AppColors.cadillacCoupe,
-                            width: 2.0,
-                          ), // Focused border
-                        ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.red,
-                            width: 1.0,
-                          ),
-                        ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.red,
-                            width: 2.0,
-                          ),
-                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
                       ),
-                      obscureText: true,
-                      style: TextStyle(color: AppColors.avocadoPeel),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your password';
@@ -262,7 +233,31 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 10),
+
+                    // Forgot Password Link
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const ForgotPasswordScreen(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Forgot Password?',
+                          style: TextStyle(
+                            color: AppColors
+                                .orangeCrush, // Branding color for link
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
 
                     // Error Message Display
                     if (_errorMessage != null)
@@ -285,7 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: CircularProgressIndicator(
                               color: AppColors.cadillacCoupe,
                             ),
-                          ) // Loading indicator color
+                          )
                         : ElevatedButton(
                             onPressed: _login,
                             style: ElevatedButton.styleFrom(
@@ -297,7 +292,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              elevation: 8,
+                              elevation:
+                                  8, // Stronger shadow for prominent button
                             ),
                             child: const Text(
                               'Login',
@@ -309,25 +305,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                     const SizedBox(height: 25),
 
-                    // Link to Registration Screen
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const RegistrationScreen(),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'Don\'t have an account? Register Here',
-                        style: TextStyle(
-                          color: AppColors
-                              .orangeCrush, // Secondary accent for link
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                    // "OR" Divider
+                    const OrDivider(), // Using the new OrDivider widget
+                    const SizedBox(height: 25), // Spacer
+                    // Google Sign-In Button
+                    GoogleSignInButton(
+                      onSignInSuccess: _onGoogleSignInSuccess,
+                      onSignInFailure: _onGoogleSignInFailure,
                     ),
+                    const SizedBox(height: 20),
+
+                    // Don't have an account? Register link
+                    const RegistrationPrompt(), // Using the new RegistrationPrompt widget
                   ],
                 ),
               ),

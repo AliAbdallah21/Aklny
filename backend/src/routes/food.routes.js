@@ -1,31 +1,32 @@
-// backend/src/routes/food.routes.js
-// This file defines the API endpoints for food items.
+// backend/src/routes/auth.routes.js
+// Defines API routes for authentication.
 
 import express from 'express';
-import FoodController from '../controllers/food.controller.js';
+import AuthController from '../controllers/auth.controller.js';
 
-// This function now needs authenticateToken and authorizeRoles
-const foodRoutes = (pool, authenticateToken, authorizeRoles) => { // ACCEPT middlewares
+// This function takes the database pool and JWT secret,
+// then creates an instance of AuthController and sets up the routes.
+export default (pool, jwtSecret) => {
     const router = express.Router();
-    const foodController = new FoodController(pool);
+    const authController = new AuthController(pool, jwtSecret);
 
-    // --- Public/Customer-facing routes ---
-    // Route to get all available food items
-    router.get('/', foodController.getAllAvailableFoodItems.bind(foodController)); // <-- CORRECTED NAME
-    // Route to get a single food item by ID
-    router.get('/:id', foodController.getFoodItemById.bind(foodController));
+    // User Registration
+    router.post('/register', authController.register.bind(authController));
 
-    // --- Protected routes for sellers (managing their own food items) ---
-    // Route to create a new food item (seller only)
-    router.post('/seller', authenticateToken, authorizeRoles(['seller']), foodController.createFoodItem.bind(foodController)); // <-- NEW PATH FOR SELLER ACTIONS
-    // Route to get all food items owned by the authenticated seller
-    router.get('/seller/me', authenticateToken, authorizeRoles(['seller']), foodController.getSellerFoodItems.bind(foodController)); // <-- NEW PATH FOR SELLER ACTIONS
-    // Route to update one of the seller's food items
-    router.put('/seller/:id', authenticateToken, authorizeRoles(['seller']), foodController.updateSellerFoodItem.bind(foodController)); // <-- CORRECTED NAME
-    // Route to delete one of the seller's food items
-    router.delete('/seller/:id', authenticateToken, authorizeRoles(['seller']), foodController.deleteSellerFoodItem.bind(foodController)); // <-- CORRECTED NAME
+    // User Login
+    router.post('/login', authController.login.bind(authController));
+
+    // NEW: Google Authentication Endpoint
+    router.post('/google-login', authController.googleLogin.bind(authController));
+
+    // Email Verification
+    router.get('/verify-email', authController.verifyEmail.bind(authController));
+    router.post('/resend-verification-email', authController.resendVerificationEmail.bind(authController));
+
+    // Password Reset
+    router.post('/request-password-reset', authController.requestPasswordReset.bind(authController));
+    router.get('/reset-password', authController.getPasswordResetForm.bind(authController)); // For displaying the form
+    router.post('/reset-password', authController.resetPassword.bind(authController)); // For submitting the new password
 
     return router;
 };
-
-export default foodRoutes;

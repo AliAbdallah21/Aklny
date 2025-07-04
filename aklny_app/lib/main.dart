@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'screens/login_screen.dart'; // Import your LoginScreen
 // Import other screens if needed for initial navigation or routing setup
 import 'utils/token_manager.dart'; // To check for existing tokens on startup
-import 'screens/home_screen.dart'; // Import HomeScreen
+import 'screens/main_app_screen.dart'; // Import HomeScreen
 
 void main() {
   runApp(const MyApp());
@@ -33,7 +33,7 @@ class _MyAppState extends State<MyApp> {
     if (token != null) {
       // If token exists, user is considered logged in, navigate to HomeScreen
       setState(() {
-        _initialScreen = const HomeScreen();
+        _initialScreen = const MainAppScreen();
       });
     }
   }

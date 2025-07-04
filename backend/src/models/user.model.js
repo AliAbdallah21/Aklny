@@ -1,13 +1,10 @@
 // backend/src/models/user.model.js
-// This file defines the User model, handling database operations for user accounts.
-
-// Note: The constructor below is illustrative if you were creating User instances
-// to hold fetched data. For direct static database operations, it's not strictly
-// necessary unless you convert query results into User objects.
+// This file defines the User model, handling database operations for user accounts,
+// now including email verification, password reset, and Google ID fields.
 
 class User {
-    // A constructor can be useful if you plan to instantiate User objects from DB rows.
-    // For now, we'll primarily use static methods for direct DB interaction.
+    // Constructor to map database row data to a User object.
+    // Ensure all relevant fields from the 'users' table are mapped here.
     constructor(data) {
         this.user_id = data.user_id;
         this.email = data.email;
@@ -17,6 +14,21 @@ class User {
         this.role = data.role;
         this.created_at = data.created_at;
         this.updated_at = data.updated_at;
+
+        // Email Verification Fields
+        this.is_verified = data.is_verified;
+        this.email_verification_token = data.email_verification_token;
+        this.email_verification_token_expires_at = data.email_verification_token_expires_at;
+
+        // Password Reset Fields
+        this.password_reset_token = data.password_reset_token;
+        this.password_reset_token_expires_at = data.password_reset_token_expires_at;
+
+        // NEW: Google ID Field
+        this.google_id = data.google_id;
+        this.profile_picture_url = data.profile_picture_url; // NEW: Add profile_picture_url here
+
+        // Seller-specific fields
         this.restaurant_name = data.restaurant_name;
         this.restaurant_description = data.restaurant_description;
         this.address_street = data.address_street;
@@ -25,10 +37,12 @@ class User {
         this.bank_account_number = data.bank_account_number;
         this.bank_name = data.bank_name;
         this.is_approved = data.is_approved;
-        this.profile_picture_url = data.profile_picture_url;
+        // this.profile_picture_url = data.profile_picture_url; // This was here, moved to common Google fields above
         this.average_rating = data.average_rating;
         this.total_reviews = data.total_reviews;
         this.total_orders_completed = data.total_orders_completed;
+
+        // Delivery Driver specific fields
         this.driver_license_number = data.driver_license_number;
         this.vehicle_type = data.vehicle_type;
         this.vehicle_plate_number = data.vehicle_plate_number;
@@ -40,19 +54,54 @@ class User {
     /**
      * Creates a new user record in the database.
      * @param {object} pool - The PostgreSQL connection pool.
-     * @param {object} userData - Object containing user details: email, passwordHash, fullName, phoneNumber, role.
+     * @param {object} userData - Object containing user details:
+     * email, passwordHash, fullName, phoneNumber, role,
+     * isVerified, emailVerificationToken, emailVerificationTokenExpiresAt,
+     * googleId (NEW), profilePictureUrl (NEW).
      * @returns {Promise<User>} A new User instance from the created record.
      */
-    static async create(pool, { email, passwordHash, fullName, phoneNumber, role }) {
+    static async create(pool, {
+        email,
+        passwordHash, // Can be null for social logins initially
+        fullName,
+        phoneNumber,
+        role,
+        isVerified,
+        emailVerificationToken,
+        emailVerificationTokenExpiresAt,
+        googleId, // NEW: Add googleId here
+        profilePictureUrl // NEW: Add profilePictureUrl here
+    }) {
         const query = `
-            INSERT INTO users (email, password_hash, full_name, phone_number, role)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO users (
+                email,
+                password_hash,
+                full_name,
+                phone_number,
+                role,
+                is_verified,
+                email_verification_token,
+                email_verification_token_expires_at,
+                google_id, -- NEW COLUMN
+                profile_picture_url -- NEW COLUMN
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *;
         `;
-        const values = [email, passwordHash, fullName, phoneNumber, role];
+        const values = [
+            email,
+            passwordHash,
+            fullName,
+            phoneNumber,
+            role,
+            isVerified,
+            emailVerificationToken,
+            emailVerificationTokenExpiresAt,
+            googleId, // NEW VALUE
+            profilePictureUrl // NEW VALUE
+        ];
         try {
             const result = await pool.query(query, values);
-            // Return a new User instance, filtering out sensitive data if this were sent directly to frontend
             return new User(result.rows[0]);
         } catch (error) {
             console.error('Error creating user:', error.message);
@@ -73,6 +122,23 @@ class User {
             return result.rows.length > 0 ? new User(result.rows[0]) : null;
         } catch (error) {
             console.error('Error finding user by email:', error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * NEW: Finds a user by their Google ID.
+     * @param {object} pool - The PostgreSQL connection pool.
+     * @param {string} googleId - The user's Google ID.
+     * @returns {Promise<User|null>} A User instance if found, otherwise null.
+     */
+    static async findByGoogleId(pool, googleId) {
+        const query = 'SELECT * FROM users WHERE google_id = $1;';
+        try {
+            const result = await pool.query(query, [googleId]);
+            return result.rows.length > 0 ? new User(result.rows[0]) : null;
+        } catch (error) {
+            console.error('Error finding user by Google ID:', error.message);
             throw error;
         }
     }
@@ -118,12 +184,17 @@ class User {
             bankAccountNumber: 'bank_account_number',
             bankName: 'bank_name',
             profilePictureUrl: 'profile_picture_url',
-            isApproved: 'is_approved', // Admin-only updates usually, but included for completeness
+            isApproved: 'is_approved',
             isAvailableForDelivery: 'is_available_for_delivery',
             driverLicenseNumber: 'driver_license_number',
             vehicleType: 'vehicle_type',
             vehiclePlateNumber: 'vehicle_plate_number',
-            // passwordHash is handled by updatePassword, email/role usually not directly updatable
+            isVerified: 'is_verified',
+            emailVerificationToken: 'email_verification_token',
+            emailVerificationTokenExpiresAt: 'email_verification_token_expires_at',
+            passwordResetToken: 'password_reset_token',
+            passwordResetTokenExpiresAt: 'password_reset_token_expires_at',
+            googleId: 'google_id' // Already here
         };
 
         for (const key in updates) {
@@ -176,6 +247,99 @@ class User {
             return result.rows.length > 0; // Returns true if a row was updated
         } catch (error) {
             console.error('Error updating password:', error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Finds a user by their email verification token.
+     * This is used when the user clicks the verification link.
+     * @param {object} pool - The PostgreSQL connection pool.
+     * @param {string} token - The email verification token.
+     * @returns {Promise<User|null>} The user object if found and token is valid/not expired, otherwise null.
+     */
+    static async findByEmailVerificationToken(pool, token) {
+        const query = `
+            SELECT * FROM users
+            WHERE email_verification_token = $1 AND email_verification_token_expires_at > NOW();
+        `;
+        try {
+            const result = await pool.query(query, [token]);
+            return result.rows.length > 0 ? new User(result.rows[0]) : null;
+        } catch (error) {
+            console.error('Error finding user by email verification token:', error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Finds a user by their password reset token.
+     * @param {object} pool - The PostgreSQL connection pool.
+     * @param {string} token - The password reset token.
+     * @returns {Promise<User|null>} The user object if found and token is valid/not expired, otherwise null.
+     */
+    static async findByPasswordResetToken(pool, token) {
+        const query = `
+            SELECT * FROM users
+            WHERE password_reset_token = $1 AND password_reset_token_expires_at > NOW();
+        `;
+        try {
+            const result = await pool.query(query, [token]);
+            return result.rows.length > 0 ? new User(result.rows[0]) : null;
+        } catch (error) {
+            console.error('Error finding user by password reset token:', error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Updates a user's password reset token and its expiry.
+     * @param {object} pool - The PostgreSQL connection pool.
+     * @param {number} userId - The ID of the user to update.
+     * @param {string} token - The new password reset token.
+     * @param {Date} expiresAt - The expiration timestamp for the token.
+     * @returns {Promise<User>} The updated user object.
+     */
+    static async updatePasswordResetToken(pool, userId, token, expiresAt) {
+        const query = `
+            UPDATE users
+            SET password_reset_token = $1, password_reset_token_expires_at = $2, updated_at = NOW()
+            WHERE user_id = $3
+            RETURNING *;
+        `;
+        try {
+            const result = await pool.query(query, [token, expiresAt, userId]);
+            if (result.rows.length === 0) {
+                throw new Error('User not found or not updated with reset token.');
+            }
+            return new User(result.rows[0]);
+        } catch (error) {
+            console.error('Error updating password reset token:', error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Marks a user's email as verified and clears the token fields.
+     * @param {object} pool - The PostgreSQL connection pool.
+     * @param {number} userId - The ID of the user to verify.
+     * @returns {Promise<User>} The updated user object.
+     */
+    static async markEmailAsVerified(pool, userId) {
+        const query = `
+            UPDATE users
+            SET is_verified = TRUE, email_verification_token = NULL, email_verification_token_expires_at = NULL, updated_at = NOW()
+            WHERE user_id = $1
+            RETURNING *;
+        `;
+        try {
+            const result = await pool.query(query, [userId]);
+            if (result.rows.length === 0) {
+                throw new Error('User not found or not updated for email verification.');
+            }
+            return new User(result.rows[0]);
+        } catch (error) {
+            console.error('Error marking email as verified:', error.message);
             throw error;
         }
     }

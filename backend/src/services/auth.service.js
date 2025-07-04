@@ -1,26 +1,20 @@
 // backend/src/services/auth.service.js
 
-import bcrypt from 'bcryptjs'; // For password hashing and comparison
-import jwt from 'jsonwebtoken'; // For JWT token generation and verification
+import { v4 as uuidv4 } from 'uuid';
 import { OAuth2Client } from 'google-auth-library'; // For Google ID Token verification
-import User from '../models/user.model.js'; // Import the User model for database interactions
-import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email.utils.js'; // Import email sending utility
-import { customAlphabet } from 'nanoid'; // For generating unique tokens
-import AppError from '../utils/appError.js'; // NEW: Import custom AppError
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email.utils.js'; 
+import { customAlphabet } from 'nanoid'; 
+import AppError from '../utils/appError.js'; 
 
 // Initialize nanoid for generating secure, URL-friendly tokens
 const generateNanoId = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 32);
 
-// Define the Android Client ID directly here, as it's static and comes from google-services.json
-// This is the 'azp' claim in the ID token.
+
 const ANDROID_CLIENT_ID = '456570061071-84o7lvpb5jc4i4fir9e47aa4vh4hk6dk.apps.googleusercontent.com';
 
-// Initialize Google OAuth2Client.
-// The client ID passed to the constructor is typically the primary web client ID.
-// The 'audience' parameter in verifyIdToken will then specify all valid client IDs.
+
 const googleOAuthClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID_WEB);
 import jwt from 'jsonwebtoken'; // For JWT token generation and verification
-import { v4 as uuidv4 } from 'uuid';
 import User from '../models/user.model.js'; // Import the User model (note the .js extension)
 import RefreshToken from '../models/refresh_token.model.js';
 import { validateRegister } from '../utils/validation.utils.js';
@@ -127,19 +121,12 @@ class AuthService {
     async authenticateWithGoogle(idToken) {
         let ticket;
         try {
-            // Define the audiences that this token is valid for.
-            // This array MUST include:
-            // 1. process.env.GOOGLE_CLIENT_ID_WEB (the 'aud' claim in the token, your backend's web client ID)
-            // 2. ANDROID_CLIENT_ID (the 'azp' claim in the token, the client that initiated the request)
             const validAudiences = [
                 process.env.GOOGLE_CLIENT_ID_WEB,
                 ANDROID_CLIENT_ID,
                 // Add process.env.GOOGLE_CLIENT_ID_IOS here if you have a real iOS client ID and plan to use it
             ].filter(Boolean); // Filter out any null/undefined values
-
-            console.log('Backend verifying ID token with audiences:', validAudiences); // Debugging line
-
-            ticket = await googleOAuthClient.verifyIdToken({
+            ticket = googleOAuthClient.verifyIdToken({
                 idToken: idToken,
                 audience: validAudiences, // Use the dynamically created array
             });
@@ -156,7 +143,6 @@ class AuthService {
         const googleId = payload['sub']; // Unique Google User ID
         const email = payload['email'];
         const fullName = payload['name'] || email; // Use name if available, fallback to email
-        // Google does not provide a phone number directly via ID Token
 
         if (!email) {
             throw new AppError('Google authentication failed: Email not provided by Google.', 400); // 400 Bad Request
@@ -186,14 +172,8 @@ class AuthService {
                         emailVerificationTokenExpiresAt: null,
                     });
                 } else if (!user.password_hash && user.google_id) {
-                    // This case means an account exists with this email AND it's already a social login,
-                    // but it wasn't found by findByGoogleId initially. This implies a different Google ID
-                    // or a logic error. Prevent linking to avoid overwriting.
                     throw new AppError('An account with this email is already linked to a different social account.', 409); // 409 Conflict
                 } else {
-                    // This case should ideally not be reached if findByGoogleId was checked first.
-                    // It means an account with this email exists, has a password, and might already have a google_id.
-                    // If it has a password, we prevent automatic linking to avoid security issues.
                     throw new AppError('An account with this email already exists with a password. Please log in with your password and link your Google account in settings, or use password reset if you forgot it.', 409); // 409 Conflict
                 }
             } else {
@@ -213,13 +193,8 @@ class AuthService {
         }
 
         // Generate JWT for the authenticated/registered user
-        const token = jwt.sign(
-            { userId: user.user_id, email: user.email, role: user.role },
-            this.jwtSecret,
-            { expiresIn: '1h' }
-        );
+        const token = this.generateAccessToken({ userId: user.user_id, email: user.email, role: user.role })
 
-        // Destructure to remove sensitive data before sending user info to frontend
         const { password_hash, email_verification_token, email_verification_token_expires_at, password_reset_token, password_reset_token_expires_at, ...userInfo } = user;
         return { token, user: userInfo };
     }
@@ -298,8 +273,8 @@ class AuthService {
             throw new AppError('Invalid or expired password reset link.', 400); // 400 Bad Request
         }
 
-        const salt = await bcrypt.genSalt(10);
-        const newPasswordHash = await bcrypt.hash(newPassword, salt);
+      
+        const newPasswordHash = await hashPassword(newPassword);
 
         await User.updatePassword(this.pool, user.user_id, newPasswordHash);
         await User.updateProfile(this.pool, user.user_id, {

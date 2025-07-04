@@ -4,7 +4,7 @@
 // routes and the core authentication business logic in auth.service.js.
 
 import AuthService from '../services/auth.service.js'; // Import the authentication service
-import { renderHtml } from '../utils/htmlRenderer.js'; // Re-added: For rendering success HTML pages
+import { renderHtml } from '../utils/htmlRenderer.utils.js'; // Re-added: For rendering success HTML pages
 import { sendHtmlError } from '../utils/response.utils.js'; // Import the HTML error rendering utility
 
 class AuthController {
@@ -14,42 +14,14 @@ class AuthController {
         this.authService = new AuthService(pool, jwtSecret);
     }
 
-<<<<<<< HEAD
-    // Handles user registration (POST /api/auth/register)
-    async register(req, res, next) {
-        try {
-            const { email, password, fullName, phoneNumber } = req.body;
-            const newUser = await this.authService.register({ email, password, fullName, phoneNumber });
-            res.status(201).json({ message: 'User registered successfully. Please verify your email.', user: newUser });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // Handles user login (POST /api/auth/login)
-    async login(req, res, next) {
-        try {
-            const { email, password } = req.body;
-            const { token, user } = await this.authService.login({ email, password });
-            res.status(200).json({ message: 'Login successful.', token, user });
-        } catch (error) {
-            next(error);
-        }
-    }
-
     // NEW: Handles Google authentication (POST /api/auth/google-login)
-    async googleLogin(req, res, next) {
-        try {
+    async googleLogin(req, res) {
             const { idToken } = req.body;
             if (!idToken) {
                 return res.status(400).json({ message: 'Google ID token is required.' });
             }
-
             const { token, user } = await this.authService.authenticateWithGoogle(idToken);
             res.status(200).json({ message: 'Google authentication successful.', token, user });
-        } catch (error) {
-            next(error);
-        }
     }
 
     // Handles email verification (GET /api/auth/verify-email?token=...)
@@ -70,33 +42,23 @@ class AuthController {
     }
 
     // Handles resending verification email (POST /api/auth/resend-verification-email)
-    async resendVerificationEmail(req, res, next) {
-        try {
+    async resendVerificationEmail(req, res) {
             const { email } = req.body;
             if (!email) {
                 return res.status(400).json({ message: 'Email is required to resend verification link.' });
             }
-
             const message = await this.authService.resendVerificationEmail(email);
             res.status(200).json({ message });
-        } catch (error) {
-            next(error);
-        }
     }
 
     // Handles requesting a password reset (POST /api/auth/request-password-reset)
-    async requestPasswordReset(req, res, next) {
-        try {
+    async requestPasswordReset(req, res) {
             const { email } = req.body;
             if (!email) {
                 return res.status(400).json({ message: 'Email is required for password reset request.' });
             }
-
             const message = await this.authService.requestPasswordReset(email);
             res.status(200).json({ message });
-        } catch (error) {
-            next(error);
-        }
     }
 
     // Handles GET request to serve the password reset form (GET /api/auth/reset-password?token=...)
@@ -122,19 +84,15 @@ class AuthController {
     }
 
     // Handles the actual password reset (POST /api/auth/reset-password)
-    async resetPassword(req, res, next) {
-        try {
+    async resetPassword(req, res) {
             const { token, newPassword } = req.body;
             if (!token || !newPassword) {
                 return res.status(400).json({ message: 'Token and new password are required.' });
             }
-
             const message = await this.authService.resetPassword(token, newPassword);
             res.status(200).json({ message });
-        } catch (error) {
-            next(error);
-        }
-=======
+       
+    }
     // Controller method for user registration
     async register(req, res) {
             const { email, password, fullName, phoneNumber} = req.body; // Extract data from request body
@@ -151,7 +109,6 @@ class AuthController {
             const { token, user } = await this.authService.login({ email, password });
             // Send a 200 OK status, a success message, the JWT token, and user info
             res.status(200).json({ message: 'Login successful!', token, user });
->>>>>>> 65b5a4cf46698eaa9ab4eee5ccefdc4d49e0582e
     }
 
     async logout(req, res){

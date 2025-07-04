@@ -13,9 +13,6 @@ import userRoutes from './routes/user.routes.js';
 // Import authorizeRoles (authenticateToken will be passed from server.js)
 import authorizeRoles from './middleware/authorize.middleware.js'; // This remains directly imported
 
-// NEW: Import the error handling utility
-import errorHandler from './utils/error.utils.js'; // Correct path to the error handler
-
 // Export the initializeApp function and the pool (which will be defined inside)
 let pool; // Declare pool outside to be exported later
 
@@ -40,7 +37,7 @@ const initializeApp = async (jwtSecret, authenticateTokenFactory) => { // <-- IM
     // Middleware setup
     app.use(cors());
     app.use(express.json());
-    app.use(cookieParser());
+    //app.use(cookieParser()); //don't remove would be used in refresh token
 
     // Initialize the actual authenticateToken middleware function here
     const authenticateToken = authenticateTokenFactory(jwtSecret); // <-- CREATE THE MIDDLEWARE INSTANCE

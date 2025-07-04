@@ -9,16 +9,8 @@ import { asyncHandler } from '../utils/errors.utils.js';
 // and returns an Express router with authentication-related routes.
 const authRoutes = (pool, jwtSecret) => { // Accepts pool and jwtSecret as before
     const router = express.Router();
-<<<<<<< HEAD
-    // Instantiate AuthController, passing the pool and jwtSecret to its constructor
-    const authController = new AuthController(pool, jwtSecret); 
+    const authController = new AuthController(pool, jwtSecret); // <-- PASS jwtSecret
 
-    // Route for user registration (POST request)
-    router.post('/register', authController.register.bind(authController));
-    
-    // Route for user login (POST request)
-    router.post('/login', authController.login.bind(authController));
-    
     // Route for email verification (GET request).
     // This is the endpoint that the user will hit when clicking the link in their email.
     // It returns an HTML response directly for browser viewing.
@@ -27,28 +19,22 @@ const authRoutes = (pool, jwtSecret) => { // Accepts pool and jwtSecret as befor
     // Route to resend the email verification link (POST request).
     // This endpoint is typically called by the frontend if the user needs a new verification email.
     // It returns a JSON response.
-    router.post('/resend-verification-email', authController.resendVerificationEmail.bind(authController));
+    router.post('/resend-verification-email', asyncHandler(authController.resendVerificationEmail.bind(authController)));
 
     // NEW: Route for requesting a password reset link (POST request).
     // This endpoint accepts an email and sends a password reset email.
-    router.post('/request-password-reset', authController.requestPasswordReset.bind(authController));
+    router.post('/request-password-reset', asyncHandler(authController.requestPasswordReset.bind(authController)));
 
     // Route for handling the password reset form submission (POST request).
     // This endpoint receives the new password and token from the HTML form.
-    router.post('/reset-password', authController.resetPassword.bind(authController)); 
+    router.post('/reset-password', asyncHandler(authController.resetPassword.bind(authController))); 
 
     // Existing: Route for serving the password reset form (GET request).
     // This endpoint serves the HTML page containing the password reset form.
     router.get('/reset-password', authController.getPasswordResetForm.bind(authController));
-
-
-    router.post('/google-login', authController.googleLogin.bind(authController));
-
-=======
-    const authController = new AuthController(pool, jwtSecret); // <-- PASS jwtSecret
+    router.post('/google-login', asyncHandler(authController.googleLogin.bind(authController)));
     router.post('/register', asyncHandler(authController.register.bind(authController)));
     router.post('/login', asyncHandler(authController.login.bind(authController)));
->>>>>>> 65b5a4cf46698eaa9ab4eee5ccefdc4d49e0582e
     return router;
 };
 

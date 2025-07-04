@@ -1,7 +1,7 @@
 // backend/src/utils/response.utils.js
 // Utility functions for consistent HTTP responses, especially for HTML error pages.
 
-import { renderHtml } from './htmlRenderer.js'; // Assuming htmlRenderer.js is in the same utils directory
+import { renderHtml } from './htmlRenderer.utils.js'; // Assuming htmlRenderer.js is in the same utils directory
 
 /**
  * Renders an HTML error page and sends it as a response.

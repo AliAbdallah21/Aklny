@@ -26,6 +26,28 @@ class AuthController {
             // Send a 200 OK status, a success message, the JWT token, and user info
             res.status(200).json({ message: 'Login successful!', token, user });
     }
+
+    async logout(req, res){
+        const tokenId = req.cookies.refreshToken;
+         res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // Set to true in production (requires HTTPS)
+            sameSite: 'Lax', // Or 'Strict' depending on your CSRF strategy
+            maxAge: 7 * 24 * 60 * 60 * 1000, //max time before expiry
+            path: '/' // Ensure the path matches the path the cookie was set with
+        });
+
+        if(!tokenId){
+            return res.status(200).json({ message: 'Logout successful (no active session found to revoke).' });
+        }
+
+        try{
+           await this.authService.logout(tokenId)
+           return res.status(200).json({ message: 'Logout successful!'});
+        }catch(error){
+           return res.status(500).json({message: "Logout failed."})
+        }
+    }
 }
 
 // Export the AuthController class.

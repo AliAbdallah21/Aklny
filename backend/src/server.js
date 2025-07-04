@@ -11,6 +11,7 @@ const envPath = path.resolve(__dirname, '../.env');
 const dotenvResult = dotenv.config({ path: envPath });
 
 const JWT_SECRET = process.env.JWT_SECRET; // Ensure JWT_SECRET is loaded now
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET
 
 // Now, import app initialization function and middleware factory
 import { initializeApp, pool } from './app.js';

@@ -1,6 +1,3 @@
-// backend/src/app.js
-
-
 import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
@@ -40,6 +37,7 @@ const initializeApp = async (jwtSecret, authenticateTokenFactory) => { // <-- IM
     // Middleware setup
     app.use(cors());
     app.use(express.json());
+    app.use(cookieParser());
 
     // Initialize the actual authenticateToken middleware function here
     const authenticateToken = authenticateTokenFactory(jwtSecret); // <-- CREATE THE MIDDLEWARE INSTANCE

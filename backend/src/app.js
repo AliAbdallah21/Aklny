@@ -1,46 +1,40 @@
+// backend/src/app.js
 import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
+import cookieParser from 'cookie-parser';
 
-// Import MongoDB connection function (but the call will be inside initializeApp)
-//import connectMongoDB from './config/mongo.config.js';
-
-// Import route factories (these will now accept dependencies)
 import authRoutes from './routes/auth.routes.js';
 import foodRoutes from './routes/food.routes.js';
 import userRoutes from './routes/user.routes.js';
 
-// Import authorizeRoles (authenticateToken will be passed from server.js)
-import authorizeRoles from './middleware/authorize.middleware.js'; // This remains directly imported
+import authorizeRoles from './middleware/authorize.middleware.js';
+import { errorHandler } from './utils/errors.utils.js'; // Ensure errorHandler is imported here!
 
-// Export the initializeApp function and the pool (which will be defined inside)
-let pool; // Declare pool outside to be exported later
+let pool;
 
-const initializeApp = async (jwtSecret, authenticateTokenFactory) => { // <-- IMPORTANT: JWT_SECRET & AUTH_TOKEN FACTORY
+const initializeApp = async (jwtSecret, jwtRefreshSecret, authenticateTokenFactory) => {
     const app = express();
 
-    const { Pool } = pg; //connect to postgreSQL on supabase
-    const pool = new Pool({
+    const { Pool } = pg;
+    pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: {rejectUnauthorized: false }
+        ssl: { rejectUnauthorized: false }
     });
 
-    await pool.query('SELECT NOW()')  // Test the PostgreSQL database connection
+    await pool.query('SELECT NOW()')
         .then(res => console.log('PostgreSQL database connected successfully at:', res.rows[0].now))
         .catch(err => {
             console.error('PostgreSQL Database connection error:', err.stack);
             process.exit(1);
         });
 
-    //connectMongoDB(); // Connect to MongoDB
-
     // Middleware setup
     app.use(cors());
     app.use(express.json());
-    //app.use(cookieParser()); //don't remove would be used in refresh token
+    app.use(cookieParser());
 
-    // Initialize the actual authenticateToken middleware function here
-    const authenticateToken = authenticateTokenFactory(jwtSecret); // <-- CREATE THE MIDDLEWARE INSTANCE
+    const authenticateToken = authenticateTokenFactory(jwtSecret);
 
     // Basic route for testing server status
     app.get('/', (req, res) => {
@@ -48,18 +42,11 @@ const initializeApp = async (jwtSecret, authenticateTokenFactory) => { // <-- IM
     });
 
     // --- API Routes ---
-    // Authentication routes (publicly accessible for login/register)
-    app.use('/api/auth', authRoutes(pool, jwtSecret)); // <-- PASS jwtSecret
-
-    // Food item routes (includes public and seller-specific endpoints)
-    app.use('/api/food', foodRoutes(pool, authenticateToken, authorizeRoles)); // <-- PASS AUTH MIDDLEWARE & AUTHORIZE
-
-    // User profile routes (protected, /api/users/me, /api/users/me/password)
-    app.use('/api/users', userRoutes(pool, authenticateToken)); // <-- PASS AUTH MIDDLEWARE
-
+    app.use('/api/auth', authRoutes(pool, jwtSecret, jwtRefreshSecret));
+    app.use('/api/food', foodRoutes(pool, authenticateToken, authorizeRoles));
+    app.use('/api/users', userRoutes(pool, authenticateToken));
 
     // --- Protected Test Routes (for development/testing purposes) ---
-    // Use the passed authenticateToken
     app.get('/api/protected', authenticateToken, (req, res) => {
         res.status(200).json({
             message: 'Welcome to the protected route!',
@@ -81,12 +68,18 @@ const initializeApp = async (jwtSecret, authenticateTokenFactory) => { // <-- IM
         });
     });
 
-    // IMPORTANT: Error handling middleware - MUST BE LAST after all other app.use() and routes
-    // This catches any errors passed with next(error) from controllers/middleware/services
-    //app.use(errorHandler);
+    // NEW: 404 Not Found Handler
+    // This middleware will be hit if no other route matches.
+    // It MUST come AFTER all your defined routes but BEFORE your global error handler.
+    app.use((req, res, next) => {
+        console.warn(`404 Not Found: ${req.method} ${req.originalUrl}`); // Log unmatched requests
+        res.status(404).json({ message: `Cannot ${req.method} ${req.originalUrl}. Route not found.` });
+    });
 
+    // IMPORTANT: Global error handler - MUST BE LAST
+    app.use(errorHandler);
 
     return app;
 };
 
-export { initializeApp, pool }; // Export initializeApp and the now-defined pool
+export { initializeApp, pool };

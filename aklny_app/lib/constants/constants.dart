@@ -20,7 +20,9 @@ class AppConstants {
       '$baseUrl/auth/request-password-reset';
   static const String resetPasswordEndpoint = '$baseUrl/auth/reset-password';
   static const String googleAuthEndpoint =
-      '$baseUrl/auth/google-login'; // NEW: Google Auth Endpoint
+      '$baseUrl/auth/google-login'; // Google Auth Endpoint
+  static const String logoutEndpoint =
+      '$baseUrl/auth/logout'; // Logout endpoint
 
   // User Profile Endpoints (Names preserved as requested)
   static const String profileMeEndpoint = '$baseUrl/users/me';

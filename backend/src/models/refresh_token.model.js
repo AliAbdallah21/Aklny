@@ -52,12 +52,24 @@ class RefreshToken {
      */
     static async revoke(pool, tokenId) {
         try {
-            await pool.query(
+            // --- DEBUG LOGS START ---
+            console.log('RefreshToken.revoke: Attempting to update token_id:', tokenId);
+            // --- DEBUG LOGS END ---
+
+            const result = await pool.query(
                 `UPDATE refresh_tokens SET is_revoked = TRUE WHERE token_id = $1`,
                 [tokenId]
             );
+
+            // --- DEBUG LOGS START ---
+            console.log(`RefreshToken.revoke: UPDATE query executed. Rows affected: ${result.rowCount}`);
+            if (result.rowCount === 0) {
+                console.warn(`RefreshToken.revoke: No refresh token found with ID ${tokenId} to revoke.`);
+            }
+            // --- DEBUG LOGS END ---
+
         } catch (error) {
-            console.error(`Error revoking refresh token by ID (${tokenId}):`, error);
+            console.error(`Error revoking refresh token by ID (${tokenId}) in model:`, error);
             throw error;
         }
     }
@@ -71,10 +83,17 @@ class RefreshToken {
      */
     static async revokeAllByUserId(pool, userId) {
         try {
-            await pool.query(
+            // --- DEBUG LOGS START ---
+            console.log('RefreshToken.revokeAllByUserId: Attempting to revoke all tokens for user_id:', userId);
+            // --- DEBUG LOGS END ---
+
+            const result = await pool.query(
                 `UPDATE refresh_tokens SET is_revoked = TRUE WHERE user_id = $1`,
                 [userId]
             );
+            // --- DEBUG LOGS START ---
+            console.log(`RefreshToken.revokeAllByUserId: UPDATE query executed. Rows affected: ${result.rowCount}`);
+            // --- DEBUG LOGS END ---
         } catch (error) {
             console.error(`Error revoking all refresh tokens for user (${userId}):`, error);
             throw error;
